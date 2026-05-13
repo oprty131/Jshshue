@@ -55,7 +55,7 @@ export default {
         const server = url.searchParams.get("server");
         const after = parseFloat(url.searchParams.get("after") || "0");
 
-        const raw = await redis.lrange("messages", -40, -1);
+        const raw = await redis.lrange("messages", -1, -1);
 
         let rows = raw
           .map(x => {
