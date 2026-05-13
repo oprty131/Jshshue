@@ -1,77 +1,88 @@
 import { Redis } from "@upstash/redis/cloudflare";
 
-const last_messages = new Map();
-
-function is_spamming(player) {
-  const now = Date.now() / 1000;
-
-  if (!last_messages.has(player)) {
-    last_messages.set(player, []);
-  }
-
-  let times = last_messages.get(player);
-  times = times.filter(t => now - t < 1);
-
-  if (times.length >= 5) return true;
-
-  times.push(now);
-  last_messages.set(player, times);
-
-  return false;
-}
-
 export default {
   async fetch(request, env) {
     const redis = Redis.fromEnv(env);
     const url = new URL(request.url);
 
     if (url.pathname === "/send" && request.method === "POST") {
-      const data = await request.json();
+      try {
+        const data = await request.json();
 
-      const player = data.player;
-      const message = data.message;
-      const mode = data.mode;
-      const server = data.server;
+        const player = String(data.player || "").trim().slice(0, 32);
+        const message = String(data.message || "").trim().slice(0, 200);
+        const mode = String(data.mode || "Global").slice(0, 20);
+        const server = String(data.server || "").slice(0, 100);
 
-      if (!player || !message) {
-        return new Response("Invalid", { status: 400 });
+        if (!player || !message) {
+          return new Response("Invalid", { status: 400 });
+        }
+
+        const spamKey = `spam:${player}`;
+        const spamCount = await redis.incr(spamKey);
+
+        if (spamCount === 1) {
+          await redis.expire(spamKey, 1);
+        }
+
+        if (spamCount > 5) {
+          return new Response("Rate limited", { status: 429 });
+        }
+
+        const msg = {
+          player,
+          message,
+          mode,
+          server,
+          time: Math.floor(Date.now() / 1000)
+        };
+
+        await redis.rpush("messages", JSON.stringify(msg));
+
+        await redis.ltrim("messages", -40, -1);
+
+        return Response.json({
+          status: "ok"
+        });
+      } catch {
+        return new Response("Bad Request", { status: 400 });
       }
-
-      if (message.length > 200) {
-        return new Response("Too long", { status: 400 });
-      }
-
-      if (is_spamming(player)) {
-        return new Response("Rate limited", { status: 429 });
-      }
-
-      const msg = {
-        player,
-        message,
-        mode,
-        server,
-        time: Date.now() / 1000
-      };
-
-      await redis.publish("chat", JSON.stringify(msg));
-
-      return Response.json({ status: "sent" });
     }
 
     if (url.pathname === "/messages") {
-      const raw = await redis.lrange("live", -20, -1);
+      try {
+        const mode = url.searchParams.get("mode");
+        const server = url.searchParams.get("server");
+        const after = parseFloat(url.searchParams.get("after") || "0");
 
-      let rows = (raw || [])
-        .map(x => {
-          try {
-            return typeof x === "string" ? JSON.parse(x) : x;
-          } catch {
-            return null;
-          }
-        })
-        .filter(Boolean);
+        const raw = await redis.lrange("messages", -40, -1);
 
-      return Response.json(rows);
+        let rows = raw
+          .map(x => {
+            try {
+              return typeof x === "string" ? JSON.parse(x) : x;
+            } catch {
+              return null;
+            }
+          })
+          .filter(Boolean);
+
+        const now = Math.floor(Date.now() / 1000);
+
+        rows = rows.filter(m => now - m.time < 300);
+
+        rows = rows.filter(m => m.time > after);
+
+        if (mode === "Server") {
+          rows = rows.filter(m => m.server === server);
+        }
+
+        rows.sort((a, b) => a.time - b.time);
+
+        return Response.json(rows);
+      } catch {
+        return new Response("Bad Request", { status: 400 });
+      }
     }
 
     return new Response("OK");
