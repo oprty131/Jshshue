@@ -1,5 +1,18 @@
 name = "pichatou"
 main = "src/index.js"
 compatibility_date = "2026-05-13"
-
 compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+persist = true
+head_sampling_rate = 1
+
+[observability.traces]
+enabled = false
+persist = false
+head_sampling_rate = 1
