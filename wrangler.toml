@@ -1,18 +1,8 @@
 name = "pichatou"
-main = "src/index.js"
+main = "src/worker.js"
 compatibility_date = "2026-05-13"
 compatibility_flags = ["nodejs_compat"]
 
-[observability]
-enabled = true
-
-[observability.logs]
-enabled = true
-invocation_logs = true
-persist = true
-head_sampling_rate = 1
-
-[observability.traces]
-enabled = false
-persist = false
-head_sampling_rate = 1
+durable_objects.bindings = [
+  { name = "CHAT", class_name = "ChatRoom" }
+]
