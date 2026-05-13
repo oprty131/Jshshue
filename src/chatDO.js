@@ -10,13 +10,13 @@ export class ChatRoom {
     const upgrade = request.headers.get("Upgrade");
 
     if (upgrade === "websocket") {
-      return this.handleWebSocket(request);
+      return this.handleWS(request);
     }
 
-    return this.handleHttp(request);
+    return this.handleHTTP(request);
   }
 
-  async handleHttp(request) {
+  async handleHTTP(request) {
     const url = new URL(request.url);
 
     if (url.pathname === "/send") {
@@ -48,7 +48,7 @@ export class ChatRoom {
     return new Response("OK");
   }
 
-  async handleWebSocket(request) {
+  async handleWS(request) {
     const pair = new WebSocketPair();
     const [client, server] = Object.values(pair);
 
