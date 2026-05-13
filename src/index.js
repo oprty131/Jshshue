@@ -39,7 +39,7 @@ export default {
 
         await redis.rpush("messages", JSON.stringify(msg));
 
-        await redis.ltrim("messages", -40, -1);
+        await redis.ltrim("messages", -1, -1);
 
         return Response.json({
           status: "ok"
