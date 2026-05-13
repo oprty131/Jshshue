@@ -53,21 +53,15 @@ export default {
         time: Date.now() / 1000
       };
 
-      await redis.rpush("messages", JSON.stringify(msg));
+      await redis.publish("chat", JSON.stringify(msg));
 
-      await redis.ltrim("messages", -50, -1);
-
-      return Response.json({ status: "ok" });
+      return Response.json({ status: "sent" });
     }
 
     if (url.pathname === "/messages") {
-      const mode = url.searchParams.get("mode");
-      const server = url.searchParams.get("server");
-      const after = parseFloat(url.searchParams.get("after") || "0");
+      const raw = await redis.lrange("live", -20, -1);
 
-      const raw = await redis.lrange("messages", 0, -1);
-
-      let rows = raw
+      let rows = (raw || [])
         .map(x => {
           try {
             return typeof x === "string" ? JSON.parse(x) : x;
@@ -76,17 +70,6 @@ export default {
           }
         })
         .filter(Boolean);
-
-      const now = Date.now() / 1000;
-
-      rows = rows.filter(m => now - m.time < 300);
-      rows = rows.filter(m => m.time > after);
-
-      if (mode === "Server") {
-        rows = rows.filter(m => m.server === server);
-      }
-
-      rows.sort((a, b) => a.time - b.time);
 
       return Response.json(rows);
     }
