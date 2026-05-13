@@ -31,7 +31,7 @@ export default {
 
         const url = new URL(request.url);
 
-        if (url.pathname === "/send2" && request.method === "POST") {
+        if (url.pathname === "/send" && request.method === "POST") {
             const data = await request.json();
 
             const player = data.player;
@@ -75,7 +75,7 @@ export default {
             });
         }
 
-        if (url.pathname === "/messages2") {
+        if (url.pathname === "/messages") {
             const mode = url.searchParams.get("mode");
 
             const server = url.searchParams.get("server");
